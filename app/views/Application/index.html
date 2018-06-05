@@ -1,0 +1,41 @@
+#{extends 'main.html' /}
+#{set title:'TomTomApi Test' /}
+
+<!-- TomTom required styles -->
+#{set 'moreStyles'}
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+<meta charset='UTF-8'>
+<title>TomTom JavaScript SDK - Map initialization</title>
+<meta name='viewport' content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no'/>
+<link rel='stylesheet' type='text/css' href='../../../public/lib/jssdk-4/map.css'/>
+<link rel='stylesheet' type='text/css' href='../../../public/lib/jssdk-4/elements.css'>
+<script type='text/javascript' src='../../../public/lib/jssdk-4/js/form.js'></script>
+<script src='../../../public/lib/jssdk-4/tomtom.min.js'></script>
+#{/set}
+
+<!-- Content -->
+*{<body class='use-all-space'>}*
+<div id='tomtomMap' style='height:50vw;width:100vw'></div>
+<form style="margin-top:20px">
+    <div class="input-group" style='width:30vw'>
+        <span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>
+        <input id="email" type="text" class="form-control" name="email" placeholder="Rue, Ville, Code Postal">
+    </div>
+</form>
+
+<!-- TomTom api script -->
+#{set 'moreScripts'}
+<script>
+    // Define your product name and version
+    tomtom.setProductInfo('com.zeng.tomtomzyh', '1.0');
+    tomtom.L.map('tomtomMap', {
+        key: 'NMw01GlBlIoHwQlSo4I21MjJVEAqqrJi',
+    });
+    // Alternatively following constructions are available:
+    // tomtom.key('<your-tomtom-API-key>');
+    // var map = L.map('map');
+    // var map = tomtom.map('map');
+    // var map = new tomtom.Map('map');
+    // var map = new L.Map('map');
+</script>
+#{/set}
