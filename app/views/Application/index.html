@@ -1,41 +1,163 @@
 #{extends 'main.html' /}
-#{set title:'TomTomApi Test' /}
+#{set title:'TomTom JavaScript SDK - Map' /}
 
 <!-- TomTom required styles -->
 #{set 'moreStyles'}
+
 <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta charset='UTF-8'>
-<title>TomTom JavaScript SDK - Map initialization</title>
 <meta name='viewport' content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no'/>
-<link rel='stylesheet' type='text/css' href='../../../public/lib/jssdk-4/map.css'/>
-<link rel='stylesheet' type='text/css' href='../../../public/lib/jssdk-4/elements.css'>
-<script type='text/javascript' src='../../../public/lib/jssdk-4/js/form.js'></script>
-<script src='../../../public/lib/jssdk-4/tomtom.min.js'></script>
+<link rel='stylesheet' type='text/css' href=@{'/public/lib/jssdk-4/map.css'}/>
+<script src=@{'/public/lib/jssdk-4/tomtom.min.js'}></script>
 #{/set}
 
 <!-- Content -->
-*{<body class='use-all-space'>}*
-<div id='tomtomMap' style='height:50vw;width:100vw'></div>
-<form style="margin-top:20px">
-    <div class="input-group" style='width:30vw'>
+<div id='map' style='height:600px;width:100vw'></div>
+<form id="tomtomSearchForm" style="margin-top:20px; margin-bottom: 20px">
+    <div class="input-group" style='width:30vw;'>
+        <input id="inputQuery" type="text" class="form-control" name="inputQuery" placeholder="Rue, Ville, Code Postal">
         <span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>
-        <input id="email" type="text" class="form-control" name="email" placeholder="Rue, Ville, Code Postal">
     </div>
 </form>
+
+<button id="positionViewPort" class="btn btn-default">Positionner à Coaxys</button>
+<button id="markerGroup" class="btn btn-default">Groupement des marquers</button>
 
 <!-- TomTom api script -->
 #{set 'moreScripts'}
 <script>
     // Define your product name and version
     tomtom.setProductInfo('com.zeng.tomtomzyh', '1.0');
-    tomtom.L.map('tomtomMap', {
+    // Setting TomTom keys
+    tomtom.searchKey('NMw01GlBlIoHwQlSo4I21MjJVEAqqrJi');
+    // Creating map
+    var map = tomtom.L.map('map', {
         key: 'NMw01GlBlIoHwQlSo4I21MjJVEAqqrJi',
+        source: 'vector',
+        // basePath: 'https://api.tomtom.com/maps-sdk-js/4.28.49/examples/sdk'
+        basePath: '/public/lib/jssdk-4'
+    }).setView([48.856614, 2.3522219000000177], 5);
+
+
+    var controlPanel = tomtom.controlPanel({
+        position: 'bottomright',
+        title: 'Settings',
+        collapsed: true
+    }).addTo(map);
+
+    var unitSelector = tomtom.unitSelector.getHtmlElement(tomtom.globalUnitService);
+    var languageSelector = tomtom.languageSelector.getHtmlElement(tomtom.globalLocaleService, 'search');
+
+    var unitRow = document.createElement('div');
+    var unitLabel = document.createElement('label');
+    unitLabel.innerHTML = 'Unit of measurement';
+    unitLabel.appendChild(unitSelector);
+    unitRow.appendChild(unitLabel);
+    unitRow.className = 'input-container';
+
+    var langRow = document.createElement('div');
+    var langLabel = document.createElement('label');
+    langLabel.innerHTML = 'Search language';
+    langLabel.appendChild(languageSelector);
+    langRow.appendChild(langLabel);
+    langRow.className = 'input-container';
+
+    controlPanel.addContent(unitRow);
+    controlPanel.addContent(langRow);
+
+    // Relocating zoom buttons
+    map.zoomControl.setPosition('bottomleft');
+
+    // Search input field
+    var searchBoxInstance = tomtom.searchBox({
+        position: 'topright',
+        language: 'en-GB', // optional
+        imperialDistance: unitSelector.value === 'imperial', // FALSE by default
+        serviceOptions: {unwrapBbox: true}
+    }).addTo(map);
+
+    // Marker layer to display the results over the map
+    var markersLayer = L.tomTomMarkersLayer().addTo(map);
+
+    // Draw markers for all the results found by the searchBox control (before user selects one)
+    searchBoxInstance.on(searchBoxInstance.Events.ResultsFound, function (results) {
+        // drawSearchCenter();
+        markersLayer.setMarkersData(results.data)
+                .addMarkers();
     });
-    // Alternatively following constructions are available:
-    // tomtom.key('<your-tomtom-API-key>');
-    // var map = L.map('map');
-    // var map = tomtom.map('map');
-    // var map = new tomtom.Map('map');
-    // var map = new L.Map('map');
+
+    // Draw markers for all the results found by the searchBox control (before user selects one)
+    searchBoxInstance.on(searchBoxInstance.Events.ResultsCleared, function () {
+        markersLayer.clearLayers();
+    });
+
+    // Add a marker to indicate the position of the result selected by the user
+    searchBoxInstance.on(searchBoxInstance.Events.ResultClicked, function (result) {
+        markersLayer.setMarkersData([result.data])
+                .addMarkers();
+        if (viewport) {
+            map.fitBounds([viewport.topLeftPoint, viewport.btmRightPoint]);
+        } else {
+            map.fitBounds(markersLayer.getBounds());
+        }
+        var msg = "Adresse selectionnée:\n" + result.data.address.freeformAddress;
+        var viewport = result.data.viewport;
+        setTimeout(function () {
+            msg += "\n[" + result.data.position.lat + ", " + result.data.position.lon + "]";
+            msg += "\nViewPort: [" + viewport.topLeftPoint.lat + "," + viewport.topLeftPoint.lon + "],  [" + viewport.btmRightPoint.lat + "," + viewport.btmRightPoint.lon + "]";
+            alert(msg);
+        }, 200);
+    });
+
+    var markersGroup = L.markerClusterGroup().addTo(map);
+    // Position marker test
+    $('#positionViewPort').click(function () {
+        markersGroup.clearLayers();
+        var lat = 49.473685;
+        var lon = 1.0980520000000524;
+        var markerOptions = {
+            icon: tomtom.L.svgIcon({
+                icon: {
+                    icon: 'fa fa-camera',
+                    iconSize: [1, 1],
+                    iconAnchor: [8, 4],
+                    style: {
+                        color: '#d33'
+                    },
+                    noPlainSVG: true
+                }
+            })
+        };
+        var mk = tomtom.L.marker([lat, lon], markerOptions);
+        markersGroup.addLayer(mk);
+        mk.on('click', function (e) {
+            var latLng = e.target.getLatLng();
+            var msg = "Coaxys\n";
+            msg += "Lat = " + latLng.lat + "; Lon = " + latLng.lng + "\n";
+            alert(msg);
+        });
+        map.setView([lat, lon], 12);
+    });
+
+    $('#markerGroup').click(function () {
+        markersGroup.clearLayers();
+        var addressPoints = [
+            [49.44323199999999, 1.0999709999999823, 'Rouen'],
+            [48.856614, 2.3522219000000177, 'Paris'],
+            [43.604652, 1.4442090000000007, 'Toulouse'],
+            [48.2973451, 4.0744009000000005, 'Troyes'],
+            [43.7101728, 7.261953199999994, 'Nice'],
+            [43.73841760000001, 7.42461579999997, 'Monaco'],
+            [48.801408, 2.1301220000000285, 'Versaille'],
+            [48.936181, 2.3574429999999893, 'Saint Denis']
+        ];
+        map.setView([46.227638, 2.213749000000007], 5);
+        addressPoints.forEach(function (point) {
+            var title = point[2];
+            var marker = tomtom.L.marker(new tomtom.L.LatLng(point[0], point[1]), {title: title});
+            marker.bindPopup(title);
+            markersGroup.addLayer(marker);
+        });
+    });
 </script>
 #{/set}
